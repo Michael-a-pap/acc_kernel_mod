@@ -4,8 +4,15 @@
 
 static int major;
 
-static struct file_operations fops = {};
+static ssize_t acc_read(struct file *f, char __user *u, size_t l, loff_t *o)
+{
+	pr_info("FPGA accelerator - Read is called");
+	return 0;
+}
 
+static struct file_operations fops = {
+	.read = acc_read
+};
 
 static int __init init_acc_mod(void)
 {
