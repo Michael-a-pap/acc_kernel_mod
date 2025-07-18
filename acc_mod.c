@@ -3,58 +3,56 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 
-#define MODULE_NAME_LONG "FPGA accelerator"
-#define MODULE_NAME_SHORT "fpga_acc"
+#define MODULE_NAME "fpga_accelerator"
 #define BUF_SIZE 64
 
-static char txt_buff[64];
-static size_t buff_len = 0; //Buffer tracking
+static char txt_buff[BUF_SIZE];
 
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
 {	
+	pr_info("%s - Read is called",MODULE_NAME);
+	int not_copied, to_copy = strnlen(txt_buff,BUF_SIZE);
 
-	int not_copied, delta, to_copy = buff_len;
+	if (to_copy == BUF_SIZE){
+		pr_info("%s - Buffer is not NULL terminated",MODULE_NAME);
+		return -ECANCELED;
+	}
 
-	pr_info("%s - Read is called",MODULE_NAME_LONG);
+	if (len < BUF_SIZE)
+		return -ECANCELED;
+	
+	if (*off > to_copy)
+		return 0;
+
 	pr_info("length to read: %ld\n",len);
 	pr_info("bytes to copy: %d\n",to_copy);
 	pr_info("offset: %lld",*off);
-
 	not_copied = copy_to_user(user_buff, &txt_buff[*off], to_copy);
-	delta = to_copy - not_copied;
-	pr_info("not copied: %d",not_copied);
-	pr_info("delta: %d",delta);
-	buff_len = 0;
 
 	if (not_copied)
-		pr_warn("%s - Only %d bytes where copied\n",MODULE_NAME_LONG, delta);
+		pr_warn("%s - not all bytes where copied\n",MODULE_NAME);
 
-	return delta;
+	*off += to_copy;
+	return to_copy;
 }
 
 static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size_t len, loff_t *off)
-{	
+{
+	int not_copied;	
+	pr_info("%s - Write is called\n",MODULE_NAME);
+	
 	if (len > sizeof(txt_buff))
-		return -ENOSPC;
+		return -EMSGSIZE;
 
-	int not_copied, delta, to_copy = len;
-	*off = 0;	
-	pr_info("%s - Write is called\n",MODULE_NAME_LONG);
 	pr_info("length to write: %ld\n",len);
-	pr_info("bytes to copy: %d\n",to_copy);
 	pr_info("offset: %lld",*off);
-	not_copied = copy_from_user(&txt_buff[*off], user_buff, to_copy);
-	delta = to_copy - not_copied;
+	not_copied = copy_from_user(&txt_buff[*off], user_buff, len);
 
-	if (not_copied)
-		pr_warn("%s - %d bytes where copied\n",MODULE_NAME_LONG, delta);
-	
-	pr_info("delta: %d",delta);
-	
-	//How many bytes where written so read() will know
-	buff_len = len; 
-
-	return delta;
+	if (not_copied){
+		pr_warn("%s - not all bytes where copied\n",MODULE_NAME); 
+		return -ECANCELED;
+	}
+	return len;
 }
 
 static struct file_operations fops = {
@@ -63,7 +61,7 @@ static struct file_operations fops = {
 };
 
 static struct miscdevice acc_misc_device = {
-	.name = MODULE_NAME_SHORT,
+	.name = MODULE_NAME,
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &fops,
 };
@@ -76,14 +74,14 @@ static int __init init_acc_mod(void)
 		pr_err("Error registering device");
 		return -status;
 	}
-	pr_info("%s - Register misc device: \n",MODULE_NAME_LONG); 
+	pr_info("%s - Register misc device: \n",MODULE_NAME); 
 	return 0;
 } 
 
 static void __exit exit_acc_mod(void) 
 { 
 	misc_deregister(&acc_misc_device);
-	pr_info("%s - Unregistering",MODULE_NAME_LONG); 
+	pr_info("%s - Unregistering",MODULE_NAME); 
 } 
 
 module_init(init_acc_mod);
