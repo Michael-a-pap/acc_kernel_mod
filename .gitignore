@@ -1,6 +1,10 @@
+*
+!/**/
+!*.*
 *.o
 *.ko
 *.mod*
 modules.order
 *cmd*
 *symvers*
+

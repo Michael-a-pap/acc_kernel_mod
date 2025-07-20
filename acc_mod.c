@@ -10,27 +10,27 @@ static char txt_buff[BUF_SIZE];
 
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
 {	
-	pr_info("%s - Read is called",MODULE_NAME);
-	int not_copied, to_copy = strnlen(txt_buff,BUF_SIZE);
+	pr_info("%s - Read is called", MODULE_NAME);
+	int not_copied, to_copy = strnlen(txt_buff, BUF_SIZE)+1;
 
-	if (to_copy == BUF_SIZE){
-		pr_info("%s - Buffer is not NULL terminated",MODULE_NAME);
+	if (to_copy-1 >= BUF_SIZE){
+		pr_info("%s - Buffer is not NULL terminated", MODULE_NAME);
 		return -ECANCELED;
 	}
 
 	if (len < BUF_SIZE)
 		return -ECANCELED;
 	
-	if (*off > to_copy)
+	if (*off >= to_copy)
 		return 0;
 
-	pr_info("length to read: %ld\n",len);
-	pr_info("bytes to copy: %d\n",to_copy);
-	pr_info("offset: %lld",*off);
+	pr_info("length to read: %ld\n", len);
+	pr_info("bytes to copy: %d\n", to_copy);
+	pr_info("offset: %lld", *off);
 	not_copied = copy_to_user(user_buff, &txt_buff[*off], to_copy);
 
 	if (not_copied)
-		pr_warn("%s - not all bytes where copied\n",MODULE_NAME);
+		pr_warn("%s - not all bytes where copied\n", MODULE_NAME);
 
 	*off += to_copy;
 	return to_copy;
@@ -39,17 +39,18 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size_t len, loff_t *off)
 {
 	int not_copied;	
-	pr_info("%s - Write is called\n",MODULE_NAME);
+	memset(txt_buff, 0xff, sizeof(txt_buff));
+	pr_info("%s - Write is called\n", MODULE_NAME);
 	
 	if (len > sizeof(txt_buff))
 		return -EMSGSIZE;
 
-	pr_info("length to write: %ld\n",len);
-	pr_info("offset: %lld",*off);
+	pr_info("length to write: %ld\n", len);
+	pr_info("offset: %lld", *off);
 	not_copied = copy_from_user(&txt_buff[*off], user_buff, len);
 
 	if (not_copied){
-		pr_warn("%s - not all bytes where copied\n",MODULE_NAME); 
+		pr_warn("%s - not all bytes where copied\n", MODULE_NAME); 
 		return -ECANCELED;
 	}
 	return len;
@@ -74,14 +75,14 @@ static int __init init_acc_mod(void)
 		pr_err("Error registering device");
 		return -status;
 	}
-	pr_info("%s - Register misc device: \n",MODULE_NAME); 
+	pr_info("%s - Register misc device: \n", MODULE_NAME); 
 	return 0;
 } 
 
 static void __exit exit_acc_mod(void) 
 { 
 	misc_deregister(&acc_misc_device);
-	pr_info("%s - Unregistering",MODULE_NAME); 
+	pr_info("%s - Unregistering", MODULE_NAME); 
 } 
 
 module_init(init_acc_mod);

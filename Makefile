@@ -5,6 +5,9 @@ obj-m += acc_mod.o
 PWD := $(CURDIR) 
 
  
+run: all
+	-sudo rmmod acc_mod
+	sudo insmod acc_mod.ko
 
 all: 
 
@@ -15,3 +18,5 @@ all:
 clean: 
 
 	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+
+
