@@ -2,9 +2,17 @@
 #include <linux/init.h> 
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/uaccess.h>
+#include <linux/debugfs.h>
 
+#define DEBUGFS_DIR "fpga_debug"
+#define DEBUGFS_FILE "my_file"
 #define MODULE_NAME "fpga_accelerator"
 #define BUF_SIZE 64
+
+//debugfs entrie
+static struct dentry *debugfs_dir;
+static struct dentry *debugfs_file;
 
 static char txt_buff[BUF_SIZE];
 
@@ -18,7 +26,7 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 		return -ECANCELED;
 	}
 
-	if (len < BUF_SIZE)
+	if (len < to_copy)
 		return -ECANCELED;
 	
 	if (*off >= to_copy)
@@ -67,14 +75,31 @@ static struct miscdevice acc_misc_device = {
 	.fops = &fops,
 };
 
+static struct file_operations debugfs_fops = {
+};
+
 static int __init init_acc_mod(void)
 {	
 	int status; 
 	status = misc_register(&acc_misc_device);
 	if (status) {
 		pr_err("Error registering device");
-		return -status;
+		return -ENOMEM;
 	}
+
+	debugfs_dir = debugfs_create_dir(DEBUGFS_DIR, NULL);
+	if(!debugfs_dir) {
+		misc_deregister(&acc_misc_device);
+		return -ENOMEM;
+	}
+
+	debugfs_file = debugfs_create_file(DEBUGFS_FILE, 0666, debugfs_dir, NULL, &debugfs_fops);
+	if(!debugfs_file) {
+		debugfs_remove_recursive(debugfs_dir);
+		misc_deregister(&acc_misc_device);
+		return -ENOMEM;
+	}
+		
 	pr_info("%s - Register misc device: \n", MODULE_NAME); 
 	return 0;
 } 
