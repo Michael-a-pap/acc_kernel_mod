@@ -19,7 +19,7 @@ static char txt_buff[BUF_SIZE];
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
 {	
 	pr_info("%s - Read is called", MODULE_NAME);
-	int not_copied, to_copy = strnlen(txt_buff, BUF_SIZE)+1;
+	ssize_t not_copied, to_copy = strnlen(txt_buff, BUF_SIZE)+1;
 
 	if (to_copy-1 >= BUF_SIZE){
 		pr_info("%s - Buffer is not NULL terminated", MODULE_NAME);
@@ -46,7 +46,7 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 
 static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size_t len, loff_t *off)
 {
-	int not_copied;	
+	ssize_t not_copied;	
 	memset(txt_buff, 0xff, sizeof(txt_buff));
 	pr_info("%s - Write is called\n", MODULE_NAME);
 	
@@ -80,7 +80,7 @@ static struct file_operations debugfs_fops = {
 
 static int __init init_acc_mod(void)
 {	
-	int status; 
+	ssize_t status; 
 	status = misc_register(&acc_misc_device);
 	if (status) {
 		pr_err("Error registering device");
