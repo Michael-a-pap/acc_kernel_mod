@@ -106,6 +106,7 @@ static int __init init_acc_mod(void)
 
 static void __exit exit_acc_mod(void) 
 { 
+	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
 	pr_info("%s - Unregistering", MODULE_NAME); 
 } 
