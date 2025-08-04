@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/init.h> 
+#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
@@ -18,9 +18,9 @@ static char txt_buff[BUF_SIZE];
 static ssize_t loopback_mode = 1;
 
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
-{	
+{
 	pr_info("%s - Read is called\n", MODULE_NAME);
-	
+
 	if (!loopback_mode) {
 		strncpy(txt_buff, "hello\n", BUF_SIZE);
 	}
@@ -35,10 +35,10 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 
 	if (len < to_copy)
 		return -ECANCELED;
-	
+
 	if (*off >= to_copy)
 		return 0;
-	
+
 	pr_info("length to read: %ld\n", len);
 	pr_info("bytes to copy: %ld\n", to_copy);
 	pr_info("offset: %lld", *off);
@@ -53,10 +53,10 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 
 static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size_t len, loff_t *off)
 {
-	ssize_t not_copied;	
+	ssize_t not_copied;
 	memset(txt_buff, 0xff, sizeof(txt_buff));
 	pr_info("%s - Write is called\n", MODULE_NAME);
-	
+
 	if (len > sizeof(txt_buff))
 		return -EMSGSIZE;
 
@@ -65,7 +65,7 @@ static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size
 	not_copied = copy_from_user(&txt_buff[*off], user_buff, len);
 
 	if (not_copied){
-		pr_warn("%s - not all bytes where copied\n", MODULE_NAME); 
+		pr_warn("%s - not all bytes where copied\n", MODULE_NAME);
 		return -ECANCELED;
 	}
 	return len;
@@ -106,8 +106,8 @@ static struct file_operations debugfs_fops = {
 };
 
 static int __init init_acc_mod(void)
-{	
-	ssize_t status; 
+{
+	ssize_t status;
 	status = misc_register(&acc_misc_device);
 	if (status) {
 		pr_err("Error registering device");
@@ -126,17 +126,17 @@ static int __init init_acc_mod(void)
 		misc_deregister(&acc_misc_device);
 		return -ENOMEM;
 	}
-		
-	pr_info("%s - Register misc device: \n", MODULE_NAME); 
-	return 0;
-} 
 
-static void __exit exit_acc_mod(void) 
-{ 
+	pr_info("%s - Register misc device: \n", MODULE_NAME);
+	return 0;
+}
+
+static void __exit exit_acc_mod(void)
+{
 	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
-	pr_warn("%s - Unregistering\n", MODULE_NAME); 
-} 
+	pr_warn("%s - Unregistering\n", MODULE_NAME);
+}
 
 module_init(init_acc_mod);
 module_exit(exit_acc_mod);
