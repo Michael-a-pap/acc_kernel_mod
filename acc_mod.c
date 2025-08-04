@@ -10,19 +10,26 @@
 #define MODULE_NAME "fpga_accelerator"
 #define BUF_SIZE 64
 
-//debugfs entrie
+//debugfs entry
 static struct dentry *debugfs_dir;
 static struct dentry *debugfs_file;
 
 static char txt_buff[BUF_SIZE];
+static ssize_t loopback_mode = 1;
 
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
 {	
-	pr_info("%s - Read is called", MODULE_NAME);
+	pr_info("%s - Read is called\n", MODULE_NAME);
+	
+	if (!loopback_mode) {
+		strncpy(txt_buff, "hello\n", BUF_SIZE);
+	}
+
 	ssize_t not_copied, to_copy = strnlen(txt_buff, BUF_SIZE)+1;
 
+
 	if (to_copy-1 >= BUF_SIZE){
-		pr_info("%s - Buffer is not NULL terminated", MODULE_NAME);
+		pr_info("%s - Buffer is not NULL terminated\n", MODULE_NAME);
 		return -ECANCELED;
 	}
 
@@ -31,9 +38,9 @@ static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len,
 	
 	if (*off >= to_copy)
 		return 0;
-
+	
 	pr_info("length to read: %ld\n", len);
-	pr_info("bytes to copy: %d\n", to_copy);
+	pr_info("bytes to copy: %ld\n", to_copy);
 	pr_info("offset: %lld", *off);
 	not_copied = copy_to_user(user_buff, &txt_buff[*off], to_copy);
 
@@ -64,6 +71,25 @@ static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size
 	return len;
 }
 
+static ssize_t debugfs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos) {
+	char kbuf[2] = {0};
+
+	if (count < 1 || count >2)
+		return -EINVAL;
+
+	if (copy_from_user(kbuf, buf, 1))
+		return -EINVAL;
+
+	if (kbuf[0] == '1')
+		loopback_mode = 1;
+	else if (kbuf[0] == '0')
+		loopback_mode = 0;
+	else
+		return -EINVAL;
+
+	pr_info("Loopback set to %ld\n", loopback_mode);
+	return count;
+}
 static struct file_operations fops = {
 	.read = acc_read,
 	.write = acc_write
@@ -76,6 +102,7 @@ static struct miscdevice acc_misc_device = {
 };
 
 static struct file_operations debugfs_fops = {
+	.write = debugfs_write,
 };
 
 static int __init init_acc_mod(void)
@@ -106,9 +133,9 @@ static int __init init_acc_mod(void)
 
 static void __exit exit_acc_mod(void) 
 { 
+	pr_info("%s - Unregistering", MODULE_NAME); 
 	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
-	pr_info("%s - Unregistering", MODULE_NAME); 
 } 
 
 module_init(init_acc_mod);

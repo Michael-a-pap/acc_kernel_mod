@@ -11,7 +11,7 @@ int main(void)
 	int fd = open(DEVICE_PATH, O_WRONLY);
 //	const char message[] = { 'H', 'e', 'l', 'l', 'o', 't', 'e', 's', 't' };
 //	const char message[5] = { 'H', 'e', 'l', 'l', 'o' };
-	const char *message ={"Hello"};
+	const char *message ={"Hello testing...loopback\n"};
 
 	if (fd < 0){
 		printf("Failed to open the device");
