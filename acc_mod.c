@@ -16,6 +16,7 @@ static struct dentry *debugfs_file;
 
 static char txt_buff[BUF_SIZE];
 static ssize_t loopback_mode = 1;
+static const char hello_str[] = "hello\n";
 
 static ssize_t acc_read(struct file *file_p, char __user *user_buff, size_t len, loff_t *off)
 {
@@ -90,6 +91,11 @@ static ssize_t debugfs_write(struct file *file, const char __user *buf, size_t c
 	pr_info("Loopback set to %ld\n", loopback_mode);
 	return count;
 }
+
+static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
+	return simple_read_from_buffer(buf, count, ppos, hello_str, sizeof(hello_str) - 1);
+}
+
 static struct file_operations fops = {
 	.read = acc_read,
 	.write = acc_write
@@ -103,6 +109,7 @@ static struct miscdevice acc_misc_device = {
 
 static struct file_operations debugfs_fops = {
 	.write = debugfs_write,
+	.read = debugfs_read,
 };
 
 static int __init init_acc_mod(void)
@@ -135,7 +142,7 @@ static void __exit exit_acc_mod(void)
 {
 	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
-	pr_warn("%s - Unregistering\n", MODULE_NAME);
+	pr_info("%s - Unregistered\n", MODULE_NAME);
 }
 
 module_init(init_acc_mod);
