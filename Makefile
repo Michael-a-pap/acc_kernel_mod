@@ -1,22 +1,10 @@
-obj-m += acc_mod.o 
+# Use KERNEL_SRC if passed from environment, otherwise fall back to host
+KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
- 
+obj-m := acc_mod.o 
 
-PWD := $(CURDIR) 
+all:
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) modules
 
- 
-run: all
-	-sudo rmmod acc_mod
-	sudo insmod acc_mod.ko
-
-all: 
-
-	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules 
-
- 
-
-clean: 
-
-	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-
-
+clean:
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
