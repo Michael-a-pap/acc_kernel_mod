@@ -4,15 +4,19 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/io.h>
 
 #define DEBUGFS_DIR "fpga_debug"
 #define DEBUGFS_FILE "my_file"
 #define MODULE_NAME "fpga_accelerator"
 #define BUF_SIZE 64
+#define COUNTER_PHYS_ADDR 0xA0020000
+#define COUNTER_REG_SIZE 0X4
 
 //debugfs entry
 static struct dentry *debugfs_dir;
 static struct dentry *debugfs_file;
+static void __iomem *counter_base;
 
 static char txt_buff[BUF_SIZE];
 static ssize_t loopback_mode = 1;
@@ -72,28 +76,29 @@ static ssize_t acc_write(struct file *file_p, const char __user *user_buff, size
 	return len;
 }
 
-static ssize_t debugfs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos) {
-	char kbuf[2] = {0};
-
-	if (count < 1 || count >2)
-		return -EINVAL;
-
-	if (copy_from_user(kbuf, buf, 1))
-		return -EINVAL;
-
-	if (kbuf[0] == '1')
-		loopback_mode = 1;
-	else if (kbuf[0] == '0')
-		loopback_mode = 0;
-	else
-		return -EINVAL;
-
-	pr_info("Loopback set to %ld\n", loopback_mode);
-	return count;
+static ssize_t debugfs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{
+	return -EINVAL;
 }
 
-static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos) {
-	return simple_read_from_buffer(buf, count, ppos, hello_str, sizeof(hello_str) - 1);
+static ssize_t debugfs_read(struct file *fp, char __user *user_buffer, size_t count, loff_t *position)
+{
+
+	u32 value;
+	char buf[32];
+	int len;
+
+	if (*position != 0)
+		return 0; // only allow one read
+
+		value = ioread32(counter_base); // read from mapped address
+		len = snprintf(buf, sizeof(buf), "%u\n", value);
+
+	if (copy_to_user(user_buffer, buf, len))
+		return -EFAULT;
+
+	*position = len;
+	return len;
 }
 
 static struct file_operations fops = {
@@ -114,6 +119,12 @@ static struct file_operations debugfs_fops = {
 
 static int __init init_acc_mod(void)
 {
+	counter_base = ioremap(COUNTER_PHYS_ADDR, COUNTER_REG_SIZE);
+	if (!counter_base) {
+		pr_err(MODULE_NAME ": Failed to map the address\n");
+		return -ENOMEM;
+	}
+
 	ssize_t status;
 	status = misc_register(&acc_misc_device);
 	if (status) {
