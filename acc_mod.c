@@ -5,13 +5,17 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
+
 
 #define DEBUGFS_DIR "fpga_debug"
 #define DEBUGFS_FILE "my_file"
 #define MODULE_NAME "fpga_accelerator"
+#define COMPATIBLE_STRING "silly_counter"
 #define BUF_SIZE 64
 #define COUNTER_PHYS_ADDR 0xA0020000
-#define COUNTER_REG_SIZE 0X4
+#define COUNTER_REG_SIZE 0x1000
 
 //debugfs entry
 static struct dentry *debugfs_dir;
@@ -91,8 +95,8 @@ static ssize_t debugfs_read(struct file *fp, char __user *user_buffer, size_t co
 	if (*position != 0)
 		return 0; // only allow one read
 
-		value = ioread32(counter_base); // read from mapped address
-		len = snprintf(buf, sizeof(buf), "%u\n", value);
+	value = ioread32(counter_base); // read from mapped address
+	len = snprintf(buf, sizeof(buf), "%u\n", value);
 
 	if (copy_to_user(user_buffer, buf, len))
 		return -EFAULT;
@@ -117,14 +121,46 @@ static struct file_operations debugfs_fops = {
 	.read = debugfs_read,
 };
 
-static int __init init_acc_mod(void)
+static int probe_acc_mod(struct platform_device *pdev)
 {
+	pr_info("Module is probed by an overlay\n");
+
 	counter_base = ioremap(COUNTER_PHYS_ADDR, COUNTER_REG_SIZE);
 	if (!counter_base) {
 		pr_err(MODULE_NAME ": Failed to map the address\n");
 		return -ENOMEM;
 	}
+	return 0;
+}
 
+static int remove_acc_mod(struct platform_device *pdev)
+{
+	if (counter_base) {
+		iounmap(counter_base);
+	}
+
+	pr_info("Overlay is removed\n");
+	return 0;
+}
+
+static const struct of_device_id acc_mod_of_match[] = {
+	{ .compatible = COMPATIBLE_STRING, },
+	{}
+};
+MODULE_DEVICE_TABLE(of, acc_mod_of_match);
+
+static struct platform_driver acc_mod_driver = {
+	.probe = probe_acc_mod,
+	.remove = remove_acc_mod,
+	.driver = {
+		.name = MODULE_NAME,
+		.of_match_table = acc_mod_of_match,
+	},
+};
+//module_platform_driver(acc_mod_driver); // to be used if no init and exit functions exist/needed
+
+static int __init init_acc_mod(void)
+{
 	ssize_t status;
 	status = misc_register(&acc_misc_device);
 	if (status) {
@@ -146,18 +182,21 @@ static int __init init_acc_mod(void)
 	}
 
 	pr_info("%s - Register misc device: \n", MODULE_NAME);
-	return 0;
+	return platform_driver_register(&acc_mod_driver);
 }
 
 static void __exit exit_acc_mod(void)
 {
+	platform_driver_unregister(&acc_mod_driver);
 	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
 	pr_info("%s - Unregistered\n", MODULE_NAME);
 }
 
+
 module_init(init_acc_mod);
 module_exit(exit_acc_mod);
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michael A. Papachatzakis");
