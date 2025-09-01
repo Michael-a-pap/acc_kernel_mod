@@ -130,6 +130,17 @@ static int probe_acc_mod(struct platform_device *pdev)
 		pr_err(MODULE_NAME ": Failed to map the address\n");
 		return -ENOMEM;
 	}
+
+	debugfs_dir = debugfs_create_dir(DEBUGFS_DIR, NULL);
+	if(!debugfs_dir) {
+		return -ENOMEM;
+	}
+
+	debugfs_file = debugfs_create_file(DEBUGFS_FILE, 0666, debugfs_dir, NULL, &debugfs_fops);
+	if(!debugfs_file) {
+		debugfs_remove_recursive(debugfs_dir);
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -139,6 +150,7 @@ static int remove_acc_mod(struct platform_device *pdev)
 		iounmap(counter_base);
 	}
 
+	debugfs_remove_recursive(debugfs_dir);
 	pr_info("Overlay is removed\n");
 	return 0;
 }
@@ -168,27 +180,13 @@ static int __init init_acc_mod(void)
 		return -ENOMEM;
 	}
 
-	debugfs_dir = debugfs_create_dir(DEBUGFS_DIR, NULL);
-	if(!debugfs_dir) {
-		misc_deregister(&acc_misc_device);
-		return -ENOMEM;
-	}
-
-	debugfs_file = debugfs_create_file(DEBUGFS_FILE, 0666, debugfs_dir, NULL, &debugfs_fops);
-	if(!debugfs_file) {
-		debugfs_remove_recursive(debugfs_dir);
-		misc_deregister(&acc_misc_device);
-		return -ENOMEM;
-	}
-
-	pr_info("%s - Register misc device: \n", MODULE_NAME);
+	pr_info("%s - Register misc device: %d\n", MODULE_NAME, acc_misc_device.minor);
 	return platform_driver_register(&acc_mod_driver);
 }
 
 static void __exit exit_acc_mod(void)
 {
 	platform_driver_unregister(&acc_mod_driver);
-	debugfs_remove_recursive(debugfs_dir);
 	misc_deregister(&acc_misc_device);
 	pr_info("%s - Unregistered\n", MODULE_NAME);
 }
